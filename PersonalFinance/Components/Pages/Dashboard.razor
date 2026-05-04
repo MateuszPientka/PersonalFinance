@@ -1,0 +1,49 @@
+﻿@page "/"
+@using PersonalFinance.Data
+@using PersonalFinance.Models
+@using Microsoft.EntityFrameworkCore
+
+@inject AppDbContext context;
+@inject NavigationManager Nav
+
+@rendermode InteractiveServer
+
+<h3>Dashboard</h3>
+
+<h4>Last 5 transactions</h4>
+<table class="table table-dark">
+    <tr>
+		<th>Date</th>
+		<th>Type</th>
+		<th>Category</th>
+		<th>Amount</th>
+		<th>Description</th>
+    </tr>
+	@foreach (Transaction t in lastFiveTransactions)
+	{
+		<tr>
+			<td>@t.Date</td>
+			<td>@t.transactionType</td>
+			<td>@t.Category</td>
+			<td>@t.Amount zł</td>
+			@if (t.Description == null)
+			{
+				<td>-</td>
+			}
+			else
+			{
+				<td>@t.Description</td>	
+			}
+		</tr>
+	}
+</table>
+
+
+@code {
+	private List<Transaction> lastFiveTransactions = new();
+
+	protected override async Task OnInitializedAsync()
+	{
+		lastFiveTransactions = await context.Transactions.OrderByDescending(t => t.Id).Take(5).ToListAsync();
+	}
+}

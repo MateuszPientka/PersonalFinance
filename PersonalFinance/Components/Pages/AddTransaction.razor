@@ -1,0 +1,78 @@
+﻿@page "/addTransaction"
+@using PersonalFinance.Data
+@using PersonalFinance.Models
+
+@inject AppDbContext context;
+@inject NavigationManager Nav
+
+@rendermode InteractiveServer
+
+<h3>Add New Transaction</h3>
+
+<div class="card form-card bg-dark">
+
+    <EditForm Model="@transaction" OnValidSubmit="HandleSubmit" FormName="AddTransactionForm">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="form-group">
+            <label>Typ transakcji</label>
+            <select class="input" @bind="transaction.transactionType">
+                <option value="Expense">Expense</option>
+                <option value="Income">Incom</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Kwota</label>
+            <InputNumber class="input" step="0.01" @bind-Value="transaction.Amount" />
+        </div>
+
+        <div class="form-group">
+            <label>Kategoria</label>
+            <select class="input" @bind="transaction.Category">
+                @foreach (var cat in categories)
+                {
+                    <option value="@cat">@cat</option>
+                }
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Data</label>
+            <InputDate class="input" @bind-Value="transaction.Date" />
+        </div>
+
+        <div class="form-group">
+            <label>Opis</label>
+            <InputTextArea class="input" @bind-Value="transaction.Description" />
+        </div>
+
+        <button class="btn-primary" type="submit">
+            Zapisz
+        </button>
+
+    </EditForm>
+
+</div>
+
+@code {
+    private Transaction transaction = new();
+
+    private List<string> categories = new()
+    {
+        "Transport",
+        "Bills",
+        "Entertainment",
+        "Daily Expenses",
+        "Other"
+    };
+
+    private async Task HandleSubmit()
+    {
+        context.Transactions.Add(transaction);
+        await context.SaveChangesAsync();
+
+        transaction = new();
+    }
+}

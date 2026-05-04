@@ -1,6 +1,12 @@
 using Microsoft.EntityFrameworkCore;
 using PersonalFinance.Components;
 using PersonalFinance.Data;
+using System.Globalization;
+
+var culture = new CultureInfo("pl-PL");
+
+CultureInfo.DefaultThreadCurrentCulture = culture;
+CultureInfo.DefaultThreadCurrentUICulture = culture;
 
 var builder = WebApplication.CreateBuilder(args);
 

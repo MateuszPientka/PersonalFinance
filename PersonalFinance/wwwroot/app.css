@@ -1,6 +1,40 @@
-html, body {
-    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+@font-face {
+    font-family: 'Poppins';
+    src: url(/Fonts/Poppins-Regular.ttf);
+    font-weight: 400;
 }
+
+@font-face {
+    font-family: 'Poppins';
+    src: url(/Fonts/Poppins-Light.ttf);
+    font-weight: 300;
+}
+
+@font-face {
+    font-family: 'Poppins';
+    src: url(/Fonts/Poppins-Bold.ttf);
+    font-weight: 700;
+}
+
+:root {
+    --bg: #0f172a;
+    --sidebar: #020617;
+    --card: #111827;
+    --text: #e5e7eb;
+    --accent: #3b82f6;
+    --income: #22c55e;
+    --expense: #ef4444;
+}
+
+html, body {
+    font-family: 'Poppins', Helvetica, Arial, sans-serif;
+    background-color: var(--bg);
+    color: var(--text);
+}
+
+/*td {
+    padding: 10px;
+}*/
 
 a, .btn-link {
     color: #006bb7;
