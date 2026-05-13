@@ -7,72 +7,130 @@
 
 @rendermode InteractiveServer
 
-<h3>Add New Transaction</h3>
-
-<div class="card form-card bg-dark">
-
-    <EditForm Model="@transaction" OnValidSubmit="HandleSubmit" FormName="AddTransactionForm">
-        <DataAnnotationsValidator />
-        <ValidationSummary />
-
-        <div class="form-group">
-            <label>Typ transakcji</label>
-            <select class="input" @bind="transaction.transactionType">
-                <option value="Expense">Expense</option>
-                <option value="Income">Incom</option>
-            </select>
+<div class="container d-flex justify-content-center align-items-center" style="min-height: 80vh;">
+    <div class="card shadow-lg border-0" style="width: 100%; max-width: 500px;">
+        <div class="card-header py-3">
+            <h5 class="m-0 font-weight-bold"><i class="bi bi-plus-circle me-2"></i>Add New Transaction</h5>
         </div>
+        <div class="card-body p-4">
+            <EditForm Model="@newTransaction">
+                <div class="mb-4">
+                    <label class="form-label text-muted small uppercase">Transaction Type</label>
+                    <div class="btn-group w-100" role="group">
+                        <input type="radio" class="btn-check" name="type" id="expense" checked>
+                        <label class="btn btn-outline-danger" for="expense"><i class="bi bi-dash-circle me-2"></i>Expense</label>
 
-        <div class="form-group">
-            <label>Kwota</label>
-            <InputNumber class="input" step="0.01" @bind-Value="transaction.Amount" />
+                        <input type="radio" class="btn-check" name="type" id="income">
+                        <label class="btn btn-outline-success" for="income"><i class="bi bi-plus-circle me-2"></i>Income</label>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-8 mb-3">
+                        <label class="form-label text-muted small">Amount</label>
+                        <div class="input-group custom-number-input">
+                            <span class="input-group-text bg-sidebar border-border text-muted">
+                                <i class="bi bi-cash-coin"></i>
+                            </span>
+                            <input type="number" class="form-control form-control-lg no-spinner" placeholder="0.00" step="0.01">
+                        </div>
+                    </div>
+
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label text-muted small">Currency</label>
+                        <select class="form-select form-select-lg">
+                            <option>PLN</option>
+                            <option>USD</option>
+                            <option>EUR</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label text-muted small">Category</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-sidebar border-border text-muted">
+                            <i class="bi bi-tag"></i>
+                        </span>
+                        <select class="form-select">
+                            <option>Food</option>
+                            <option>Transport</option>
+                            <option>Entertainment</option>
+                            <option>Salary</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="mb-4">
+                    <label class="form-label text-muted small">Date</label>
+                    <input type="date" class="form-control" value="@DateTime.Now.ToString("yyyy-MM-dd")">
+                </div>
+                <button type="submit" class="btn btn-primary btn-lg w-100 py-3 shadow">
+                    Save Transaction
+                </button>
+            </EditForm>
         </div>
-
-        <div class="form-group">
-            <label>Kategoria</label>
-            <select class="input" @bind="transaction.Category">
-                @foreach (var cat in categories)
-                {
-                    <option value="@cat">@cat</option>
-                }
-            </select>
-        </div>
-
-        <div class="form-group">
-            <label>Data</label>
-            <InputDate class="input" @bind-Value="transaction.Date" />
-        </div>
-
-        <div class="form-group">
-            <label>Opis</label>
-            <InputTextArea class="input" @bind-Value="transaction.Description" />
-        </div>
-
-        <button class="btn-primary" type="submit">
-            Zapisz
-        </button>
-
-    </EditForm>
-
+    </div>
 </div>
 
 @code {
-    private Transaction transaction = new();
+    private Transaction newTransaction = new()
+        {
+            Date = DateTime.Now,
+            Type = TransactionType.Expense,
+            CurrencyCode = "PLN"
+        };
 
-    private List<string> categories = new()
+    private List<Category> allCategories = new();
+    private List<Category> filteredCategories = new();
+
+    protected override async Task OnInitializedAsync()
     {
-        "Transport",
-        "Bills",
-        "Entertainment",
-        "Daily Expenses",
-        "Other"
-    };
+        // Pobieramy kategorie raz przy starcie strony
+        allCategories = await context.Categories.ToListAsync();
+        FilterCategories();
+    }
+
+    private void ChangeType(TransactionType type)
+    {
+        newTransaction.Type = type;
+        FilterCategories();
+    }
+
+    private void FilterCategories()
+    {
+        // Filtrujemy kategorie na podstawie wybranego typu (Expense/Income)
+        filteredCategories = allCategories
+            .Where(c => c.IsIncome == (newTransaction.Type == TransactionType.Income))
+            .ToList();
+
+        // Ustawiamy pierwszą dostępną kategorię jako domyślną
+        if (filteredCategories.Any())
+        {
+            newTransaction.CategoryId = filteredCategories.First().Id;
+        }
+    }
 
     private async Task HandleSubmit()
     {
-        context.Transactions.Add(transaction);
-        await context.SaveChangesAsync();
+        try
+        {
+            context.Transactions.Add(newTransaction);
+            await context.SaveChangesAsync();
 
-        transaction = new();
+            // Reset formularza
+            newTransaction = new()
+                {
+                    Date = DateTime.Now,
+                    Type = TransactionType.Expense,
+                    CurrencyCode = "PLN"
+                };
+            FilterCategories();
+
+            // Opcjonalnie: alert o sukcesie (możesz dodać prostego boola ShowSuccess)
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("Error: " + ex.Message);
+        }
     }
 }

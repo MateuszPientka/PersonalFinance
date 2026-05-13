@@ -1,0 +1,32 @@
+﻿@page "/goals"
+
+@using PersonalFinance.Data
+@using PersonalFinance.Models
+@using Microsoft.EntityFrameworkCore
+
+@inject AppDbContext context;
+@inject NavigationManager Nav
+
+@rendermode InteractiveServer
+
+<div class="row">
+    <div class="col-md-4 mb-4">
+        <div class="card h-100 shadow-sm">
+            <div class="card-body">
+                <h5>Nowy Laptop</h5>
+                <p class="text-muted small">Cel: 5,000.00 PLN</p>
+                <div class="progress mb-2" style="height: 20px;">
+                    <div class="progress-bar bg-warning" style="width: 60%">60%</div>
+                </div>
+                <p class="mb-0 text-end font-weight-bold">3,000 / 5,000 PLN</p>
+            </div>
+            <div class="card-footer bg-transparent">
+                <button class="btn btn-sm btn-primary w-100">Dodaj oszczędności</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+
+}

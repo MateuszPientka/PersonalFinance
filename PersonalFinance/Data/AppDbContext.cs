@@ -9,5 +9,8 @@ namespace PersonalFinance.Data
         {
         }
         public DbSet<Transaction> Transactions { get; set; }
-    }
+        public DbSet<Category> Categories{ get; set; }
+        public DbSet<FinancialGoal> FinancialGoals { get; set; }
+        public DbSet<CurrencyRate> CurrencyRates { get; set; }
+	}
 }

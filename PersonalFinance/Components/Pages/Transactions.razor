@@ -1,0 +1,48 @@
+﻿@page "/transactions"
+
+@using PersonalFinance.Data
+@using PersonalFinance.Models
+@using Microsoft.EntityFrameworkCore
+
+@inject AppDbContext context;
+@inject NavigationManager Nav
+
+@rendermode InteractiveServer
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3>Historia transakcji</h3>
+    <input type="text" class="form-control w-25" placeholder="Szukaj..." />
+</div>
+
+<table class="table table-hover shadow-sm bg-white">
+    <thead class="table-dark">
+        <tr>
+            <th>Data</th>
+            <th>Kategoria</th>
+            <th>Opis</th>
+            <th>Kwota</th>
+            <th>Akcje</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>2024-05-20</td>
+            <td><span class="badge bg-info">Transport</span></td>
+            <td>Bilet miesięczny</td>
+            <td class="text-danger">-110.00 PLN</td>
+            <td>
+                <button class="btn btn-sm btn-outline-primary"><i class="bi bi-pencil"></i></button>
+                <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+            </td>
+        </tr>
+    </tbody>
+</table>
+
+@code {
+	private List<Transaction> lastFiveTransactions = new();
+
+	protected override async Task OnInitializedAsync()
+	{
+		lastFiveTransactions = await context.Transactions.OrderByDescending(t => t.Date).ToListAsync();
+	}
+}
