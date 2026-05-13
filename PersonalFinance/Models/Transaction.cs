@@ -8,9 +8,10 @@ namespace PersonalFinance.Models
 		[Key]
 		public int Id { get; set; }
 
-		[Required]
-		[Column(TypeName = "decimal(18,2)")]
-		public decimal Amount { get; set; }
+        [Required(ErrorMessage = "Amount is required")]
+        [Range(0.01, double.MaxValue, ErrorMessage = "Amount must be greater than 0")]
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal Amount { get; set; }
 
 		[Required]
 		[MaxLength(3)]

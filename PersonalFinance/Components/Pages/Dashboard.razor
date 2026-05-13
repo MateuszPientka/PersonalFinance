@@ -11,32 +11,26 @@
 <div class="container-fluid p-0">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2 class="m-0">Dashboard</h2>
-        <span class="text-muted">Witaj ponownie!</span>
+        <span class="text-muted">Welcome back!</span>
     </div>
 
-    <div class="row mb-4">
-        <div class="col-xl-4 col-md-6 mb-3">
-            <div class="card bg-primary shadow-sm h-100">
-                <div class="card-body">
-                    <h6 class="text-white-50">Aktualne Saldo</h6>
-                    <h3 class="mb-0">12,450.00 PLN</h3>
-                </div>
+    <div class="row g-3 mb-5">
+        <div class="col-md-4">
+            <div class="card bg-primary text-white border-0 shadow-sm p-3">
+                <label class="small opacity-75">Total Balance</label>
+                <h2 class="fw-bold">@totalBalance.ToString("N2") PLN</h2>
             </div>
         </div>
-        <div class="col-xl-4 col-md-6 mb-3">
-            <div class="card h-100">
-                <div class="card-body">
-                    <h6 class="text-muted">Przychody (Maj)</h6>
-                    <h3 class="text-success mb-0">+ 8,200.00 PLN</h3>
-                </div>
+        <div class="col-md-4">
+            <div class="card bg-dark border-0 shadow-sm p-3">
+                <label class="small text-success">Monthly Income</label>
+                <h2 class="fw-bold text-success">+ @monthlyIncome.ToString("N2")</h2>
             </div>
         </div>
-        <div class="col-xl-4 col-md-12 mb-3">
-            <div class="card h-100">
-                <div class="card-body">
-                    <h6 class="text-muted">Wydatki (Maj)</h6>
-                    <h3 class="text-danger mb-0">- 3,150.00 PLN</h3>
-                </div>
+        <div class="col-md-4">
+            <div class="card bg-dark border-0 shadow-sm p-3">
+                <label class="small text-danger">Monthly Expense</label>
+                <h2 class="fw-bold text-danger">- @monthlyExpense.ToString("N2")</h2>
             </div>
         </div>
     </div>
@@ -45,50 +39,47 @@
         <div class="col-lg-8 mb-4">
             <div class="card h-100">
                 <div class="card-header d-flex justify-content-between align-items-center">
-                    <span>Wydatki w tym tygodniu</span>
-                    <button class="btn btn-sm btn-outline-secondary">Szczegóły</button>
+                    <h5>Weekly Expenses</h5>
+                    <button class="btn btn-sm btn-outline-secondary">Details</button>
                 </div>
                 <div class="card-body d-flex align-items-center justify-content-center" style="min-height: 300px;">
                     <div class="text-center">
                         <i class="bi bi-graph-up mb-3 d-block" style="font-size: 2rem; color: var(--accent);"></i>
-                        <span class="text-muted">[Miejsce na wykres dynamiczny]</span>
+                        <span class="text-muted">[Work in progress]</span>
                     </div>
                 </div>
             </div>
         </div>
 
         <div class="col-lg-4 mb-4">
-            <div class="card h-100">
-                <div class="card-header">
-                    Ostatnie transakcje
+            <div class="card bg-dark border-0 shadow-sm">
+                <div class="card-header bg-transparent border-border d-flex justify-content-between align-items-center py-3">
+                    <h5 class="m-0">Recent Transactions</h5>
+                    <a href="/transactions" class="btn btn-sm btn-outline-primary">View All</a>
                 </div>
                 <div class="card-body p-0">
                     <div class="list-group list-group-flush">
-                        <div class="list-group-item d-flex justify-content-between align-items-center">
-                            <div>
-                                <div class="fw-bold">Zakupy spożywcze</div>
-                                <small class="text-muted small">Dzisiaj, 14:20</small>
+                        @foreach (var transaction in recentTransactions)
+                        {
+                            <div class="list-group-item bg-transparent border-border d-flex justify-content-between align-items-center py-3">
+                                <div class="d-flex align-items-center">
+                                    <div class="category-icon-circle me-3">
+                                        <i class="bi @transaction.Category?.Icon"></i>
+                                    </div>
+                                    <div>
+                                        <p class="m-0 fw-bold">@transaction.Category?.Name</p>
+                                        <small class="text-muted">@transaction.Date.ToString("dd MMM yyyy")</small>
+                                    </div>
+                                </div>
+                                <div class="text-end">
+                                    <p class="m-0 fw-bold @(transaction.Type == TransactionType.Income ? "text-success" : "text-danger")">
+                                        @(transaction.Type == TransactionType.Income ? "+" : "-") @transaction.Amount.ToString("N2")
+                                    </p>
+                                    <small class="text-muted">@transaction.CurrencyCode</small>
+                                </div>
                             </div>
-                            <span class="amount-expense">-120.00 PLN</span>
-                        </div>
-                        <div class="list-group-item d-flex justify-content-between align-items-center">
-                            <div>
-                                <div class="fw-bold">Wypłata</div>
-                                <small class="text-muted small">Wczoraj</small>
-                            </div>
-                            <span class="amount-income">+5,000.00 PLN</span>
-                        </div>
-                        <div class="list-group-item d-flex justify-content-between align-items-center">
-                            <div>
-                                <div class="fw-bold">Paliwo</div>
-                                <small class="text-muted small">12 Maj</small>
-                            </div>
-                            <span class="amount-expense">-300.00 PLN</span>
-                        </div>
+                        }
                     </div>
-                </div>
-                <div class="card-footer text-center">
-                    <a href="/transactions" class="btn btn-sm btn-link text-accent">Zobacz wszystko</a>
                 </div>
             </div>
         </div>
@@ -97,10 +88,27 @@
 
 
 @code {
-	private List<Transaction> lastFiveTransactions = new();
+    private decimal totalBalance;
+    private decimal monthlyIncome;
+    private decimal monthlyExpense;
+    private List<Transaction> recentTransactions = new();
 
-	protected override async Task OnInitializedAsync()
-	{
-		lastFiveTransactions = await context.Transactions.OrderByDescending(t => t.Id).Take(5).ToListAsync();
-	}
+    protected override async Task OnInitializedAsync()
+    {
+        var now = DateTime.Now;
+        var firstDayOfMonth = new DateTime(now.Year, now.Month, 1);
+
+        var allTransactions = await context.Transactions.ToListAsync();
+        totalBalance = allTransactions.Sum(t => t.Type == TransactionType.Income ? t.Amount : -t.Amount);
+
+        var monthlyData = allTransactions.Where(t => t.Date >= firstDayOfMonth).ToList();
+        monthlyIncome = monthlyData.Where(t => t.Type == TransactionType.Income).Sum(t => t.Amount);
+        monthlyExpense = monthlyData.Where(t => t.Type == TransactionType.Expense).Sum(t => t.Amount);
+
+        recentTransactions = await context.Transactions
+            .Include(t => t.Category)
+            .OrderByDescending(t => t.Date)
+            .Take(5)
+            .ToListAsync();
+    }
 }
