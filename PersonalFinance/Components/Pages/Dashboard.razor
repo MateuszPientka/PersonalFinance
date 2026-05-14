@@ -2,9 +2,13 @@
 @using PersonalFinance.Data
 @using PersonalFinance.Models
 @using Microsoft.EntityFrameworkCore
+@using PersonalFinance.Services
 
+@inject CurrencyService CurrencySvc
 @inject AppDbContext context;
 @inject NavigationManager Nav
+
+@inject IJSRuntime JSRuntime
 
 @rendermode InteractiveServer
 
@@ -23,13 +27,13 @@
         </div>
         <div class="col-md-4">
             <div class="card bg-dark border-0 shadow-sm p-3">
-                <label class="small text-success">Monthly Income</label>
+                <label class="small text-success">Monthly Income (PLN)</label>
                 <h2 class="fw-bold text-success">+ @monthlyIncome.ToString("N2")</h2>
             </div>
         </div>
         <div class="col-md-4">
             <div class="card bg-dark border-0 shadow-sm p-3">
-                <label class="small text-danger">Monthly Expense</label>
+                <label class="small text-danger">Monthly Expense (PLN)</label>
                 <h2 class="fw-bold text-danger">- @monthlyExpense.ToString("N2")</h2>
             </div>
         </div>
@@ -37,16 +41,13 @@
 
     <div class="row">
         <div class="col-lg-8 mb-4">
-            <div class="card h-100">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5>Weekly Expenses</h5>
-                    <button class="btn btn-sm btn-outline-secondary">Details</button>
+            <div class="card h-100 bg-dark text-white border-secondary">
+                <div class="card-header d-flex justify-content-between align-items-center border-secondary">
+                    <h5 class="m-0">Weekly Expenses</h5>
+                    <a href="/statistics" class="btn btn-sm btn-outline-info">Details</a>
                 </div>
-                <div class="card-body d-flex align-items-center justify-content-center" style="min-height: 300px;">
-                    <div class="text-center">
-                        <i class="bi bi-graph-up mb-3 d-block" style="font-size: 2rem; color: var(--accent);"></i>
-                        <span class="text-muted">[Work in progress]</span>
-                    </div>
+                <div class="card-body p-0" style="height: 350px; position: relative; overflow: hidden;">
+                    <canvas id="weeklyPieChart"></canvas>
                 </div>
             </div>
         </div>
@@ -60,6 +61,7 @@
                 <div class="card-body p-0">
                     <div class="list-group list-group-flush">
                         @foreach (var transaction in recentTransactions)
+
                         {
                             <div class="list-group-item bg-transparent border-border d-flex justify-content-between align-items-center py-3">
                                 <div class="d-flex align-items-center">
@@ -74,6 +76,12 @@
                                 <div class="text-end">
                                     <p class="m-0 fw-bold @(transaction.Type == TransactionType.Income ? "text-success" : "text-danger")">
                                         @(transaction.Type == TransactionType.Income ? "+" : "-") @transaction.Amount.ToString("N2")
+
+                                        @if (transaction.CurrencyCode != "PLN")
+
+                                        {
+                                            <span class="small opacity-75 ms-1">(@transaction.AmountPLN.ToString("N2") PLN)</span>
+                                        }
                                     </p>
                                     <small class="text-muted">@transaction.CurrencyCode</small>
                                 </div>
@@ -86,29 +94,78 @@
     </div>
 </div>
 
-
 @code {
     private decimal totalBalance;
+
     private decimal monthlyIncome;
+
     private decimal monthlyExpense;
+
     private List<Transaction> recentTransactions = new();
+
+
 
     protected override async Task OnInitializedAsync()
     {
         var now = DateTime.Now;
-        var firstDayOfMonth = new DateTime(now.Year, now.Month, 1);
+
+        var firstDayOfMonth = DateTime.SpecifyKind(new DateTime(now.Year, now.Month, 1), DateTimeKind.Utc);
 
         var allTransactions = await context.Transactions.ToListAsync();
-        totalBalance = allTransactions.Sum(t => t.Type == TransactionType.Income ? t.Amount : -t.Amount);
+
+        totalBalance = allTransactions.Sum(t => t.Type == TransactionType.Income ? t.AmountPLN : -t.AmountPLN);
 
         var monthlyData = allTransactions.Where(t => t.Date >= firstDayOfMonth).ToList();
-        monthlyIncome = monthlyData.Where(t => t.Type == TransactionType.Income).Sum(t => t.Amount);
-        monthlyExpense = monthlyData.Where(t => t.Type == TransactionType.Expense).Sum(t => t.Amount);
+
+        monthlyIncome = monthlyData.Where(t => t.Type == TransactionType.Income).Sum(t => t.AmountPLN);
+
+        monthlyExpense = monthlyData.Where(t => t.Type == TransactionType.Expense).Sum(t => t.AmountPLN);
 
         recentTransactions = await context.Transactions
+
             .Include(t => t.Category)
+
             .OrderByDescending(t => t.Date)
+
             .Take(5)
+
             .ToListAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await LoadWeeklyPieChart();
+        }
+    }
+
+    private async Task LoadWeeklyPieChart()
+    {
+        
+        var lastWeek = DateTime.UtcNow.AddDays(-7);
+
+        var data = await context.Transactions
+            .Include(t => t.Category)
+            .Where(t => t.Type == TransactionType.Expense && t.Date >= lastWeek)
+            .GroupBy(t => t.Category.Name ?? "Other")
+            .Select(g => new { 
+                Label = g.Key, 
+                Value = (double)g.Sum(t => t.AmountPLN) 
+            })
+            .ToListAsync();
+
+        if (data.Any())
+        {
+            var labels = data.Select(d => d.Label).ToArray();
+            var values = data.Select(d => d.Value).ToArray();
+
+            await JSRuntime.InvokeVoidAsync("setupChart", 
+                "weeklyPieChart", 
+                "doughnut", 
+                labels, 
+                values, 
+                "Weekly Expenses");
+        }
     }
 }

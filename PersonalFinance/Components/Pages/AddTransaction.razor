@@ -2,7 +2,9 @@
 @using PersonalFinance.Data
 @using PersonalFinance.Models
 @using Microsoft.EntityFrameworkCore
+@using PersonalFinance.Services
 
+@inject CurrencyService CurrencySvc
 @inject AppDbContext context;
 @inject NavigationManager Nav
 
@@ -61,6 +63,7 @@
                         <option value="PLN">PLN</option>
                         <option value="USD">USD</option>
                         <option value="EUR">EUR</option>
+                        <option value="GBP">GBP</option>
                     </select>
                 </div>
             </div>
@@ -146,6 +149,10 @@
         try
         {
             newTransaction.Date = DateTime.SpecifyKind(newTransaction.Date, DateTimeKind.Utc);
+
+            decimal rate = await CurrencySvc.GetRateForDate(newTransaction.CurrencyCode, newTransaction.Date);
+
+            newTransaction.AmountPLN = newTransaction.Amount * rate;
 
             context.Transactions.Add(newTransaction);
             await context.SaveChangesAsync();

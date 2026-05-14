@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using PersonalFinance.Components;
 using PersonalFinance.Data;
+using PersonalFinance.Services;
 using System.Globalization;
 
 var culture = new CultureInfo("pl-PL");
@@ -13,6 +14,9 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
+
+builder.Services.AddHttpClient();
+builder.Services.AddScoped<CurrencyService>();
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 

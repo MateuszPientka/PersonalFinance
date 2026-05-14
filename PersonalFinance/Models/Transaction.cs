@@ -12,10 +12,12 @@ namespace PersonalFinance.Models
         [Range(0.01, double.MaxValue, ErrorMessage = "Amount must be greater than 0")]
         [Column(TypeName = "decimal(18,2)")]
         public decimal Amount { get; set; }
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal AmountPLN { get; set; }
 
-		[Required]
+        [Required]
 		[MaxLength(3)]
-		public string CurrencyCode { get; set; } = "PLN"; // Np. PLN, EUR, USD
+		public string CurrencyCode { get; set; } = "PLN";
 
 		[Required]
 		public DateTime Date { get; set; }
@@ -24,9 +26,8 @@ namespace PersonalFinance.Models
 		public string? Description { get; set; }
 
 		[Required]
-		public TransactionType Type { get; set; } // Enum: Income / Expense
+		public TransactionType Type { get; set; }
 
-		// Relacja do Kategorii
 		[Required]
 		public int CategoryId { get; set; }
 		public Category Category { get; set; } = null!;

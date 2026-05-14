@@ -2,16 +2,339 @@
 
 @using PersonalFinance.Data
 @using PersonalFinance.Models
+@using Microsoft.EntityFrameworkCore
+@using PersonalFinance.Services
 
+@inject CurrencyService CurrencySvc
 @inject AppDbContext context;
 @inject NavigationManager Nav
 
+@inject IJSRuntime JSRuntime
+
 @rendermode InteractiveServer
 
-<h3>Statistics</h3>
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="m-0">Financial Analytics</h2>
 
-<h4></h4>
+        <div class="btn-group shadow-sm">
+            <button class="btn btn-outline-primary @GetActiveClass(TimeRange.Week)"
+                    @onclick="() => ChangeRange(TimeRange.Week)">
+                Week
+            </button>
+
+            <button class="btn btn-outline-primary @GetActiveClass(TimeRange.Month)"
+                    @onclick="() => ChangeRange(TimeRange.Month)">
+                Month
+            </button>
+
+            <button class="btn btn-outline-primary @GetActiveClass(TimeRange.Year)"
+                    @onclick="() => ChangeRange(TimeRange.Year)">
+                Year
+            </button>
+
+            <button class="btn btn-outline-primary @GetActiveClass(TimeRange.All)"
+                    @onclick="() => ChangeRange(TimeRange.All)">
+                All-time
+            </button>
+        </div>
+    </div>
+
+    <div class="card bg-dark border-0 shadow-sm mb-4">
+        <div class="card-body p-4">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h5 class="m-0"><i class="bi bi-trophy text-warning me-2"></i>Goal: <strong>@currentGoal.Name</strong></h5>
+                <button class="btn btn-sm btn-outline-warning border-0" @onclick="() => showGoalModal = true">
+                    <i class="bi bi-pencil-square"></i> Edit Goal
+                </button>
+            </div>
+            @{
+                var progressPercent = currentGoal.TargetAmount > 0
+                ? Math.Min(100, Math.Max(0, (totalSavings / currentGoal.TargetAmount) * 100))
+                : 0;
+            }
+
+            <div class="progress bg-secondary shadow-sm" style="height: 30px; border-radius: 15px;">
+                <div class="progress-bar progress-bar-striped progress-bar-animated @(progressPercent >= 100 ? "bg-success" : "bg-primary")"
+                     role="progressbar"
+                     style="width: @progressPercent.ToString("0")%; transition: width 0.6s ease;"
+                     aria-valuenow="@progressPercent">
+                    @totalSavings.ToString("N0") / @currentGoal.TargetAmount.ToString("N0") PLN
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-5 mb-4">
+            <div class="card bg-dark border-0 shadow-sm h-100">
+                <div class="card-header bg-transparent border-secondary d-flex justify-content-between align-items-center">
+                    <h5 class="m-0">Structure</h5>
+                    <select class="form-select form-select-sm bg-transparent text-white border-secondary"
+                            style="width: auto;"
+                            @onchange="OnPieChartTypeChanged">
+                        <option value="@TransactionType.Expense">Expenses</option>
+                        <option value="@TransactionType.Income">Income</option>
+                    </select>
+                </div>
+                <div class="card-body p-0" style="height: 350px; position: relative; overflow: hidden;">
+                    <canvas id="pieChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-7 mb-4">
+            <div class="card bg-dark border-0 shadow-sm h-100">
+                <div class="card-header bg-transparent border-secondary">
+                    <h5 class="m-0">Net Worth Flow (PLN)</h5>
+                </div>
+                <div class="card-body p-0" style="height: 350px; position: relative; overflow: hidden;">
+                    <canvas id="lineChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-md-4">
+            <div class="card border-0 bg-primary bg-opacity-10 p-3 h-100 shadow-sm">
+                <label class="small fw-bold text-uppercase">Top Category</label>
+                <h4 class="m-0">@topCategoryName</h4>
+                <small class="text-white-50">@topCategoryAmount.ToString("N2") PLN spent</small>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card border-0 bg-success bg-opacity-10 p-3 h-100 shadow-sm">
+                <label class="text-muted small fw-bold text-uppercase">Avg. Daily Spending</label>
+                <h4 class="text-success m-0">@dailyAverage.ToString("N2") PLN</h4>
+                <small class="text-white-50">In selected period</small>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card border-0 bg-info bg-opacity-10 p-3 h-100 shadow-sm">
+                <label class="text-muted small fw-bold text-uppercase">Savings Rate</label>
+                @{
+                    var savingsRate = CalculateSavingsRate();
+                }
+                <h4 class="text-info m-0">@savingsRate%</h4>
+                <small class="text-white-50">Of income saved</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (showGoalModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.6);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content bg-dark text-white border-secondary">
+                <div class="modal-header border-secondary">
+                    <h5 class="modal-title">Set Savings Goal</h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="() => showGoalModal = false"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label small text-muted">What are you saving for?</label>
+                        <input type="text" @bind="currentGoal.Name" class="form-control bg-transparent text-white border-secondary" placeholder="e.g. New Car" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small text-muted">Target Amount (PLN)</label>
+                        <input type="number" @bind="currentGoal.TargetAmount" class="form-control bg-transparent text-white border-secondary" />
+                    </div>
+                </div>
+                <div class="modal-footer border-secondary">
+                    <button type="button" class="btn btn-outline-secondary" @onclick="() => showGoalModal = false">Cancel</button>
+                    <button type="button" class="btn btn-warning text-dark fw-bold" @onclick="SaveGoal">Save Goal</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
 
 @code {
+    private List<Transaction> filteredTransactions = new();
+    private decimal totalSavings = 0;
 
+    private string topCategoryName = "None";
+    private decimal topCategoryAmount = 0;
+    private decimal dailyAverage = 0;
+    private string efficiencyClass = "text-info";
+
+    private decimal goalTarget = 4000;
+    private decimal goalCurrent = 3000;
+
+    private enum TimeRange { Week, Month, Year, All }
+    private TimeRange selectedRange = TimeRange.Month;
+
+    private FinancialGoal currentGoal = new();
+    private bool showGoalModal = false;
+
+    private TransactionType pieChartType = TransactionType.Expense;
+
+    private async Task LoadAnalyticsData()
+    {
+        var allTransactions = await context.Transactions.ToListAsync();
+
+        totalSavings = allTransactions.Where(t => t.Type == TransactionType.Income).Sum(t => t.AmountPLN)
+                     - allTransactions.Where(t => t.Type == TransactionType.Expense).Sum(t => t.AmountPLN);
+
+        currentGoal = await context.FinancialGoals.FirstOrDefaultAsync()
+                      ?? new FinancialGoal { Name = "New Goal", TargetAmount = 1000 };
+
+        var now = DateTime.UtcNow;
+        DateTime startDate = GetStartDateForRange(selectedRange, now);
+
+        var query = context.Transactions.Include(t => t.Category).AsQueryable();
+        if (selectedRange != TimeRange.All)
+        {
+            query = query.Where(t => t.Date >= startDate);
+        }
+
+        filteredTransactions = await query.OrderByDescending(t => t.Date).ToListAsync();
+
+        CalculateInsights();
+        StateHasChanged();
+    }
+
+    private DateTime GetStartDateForRange(TimeRange range, DateTime now) => range switch
+    {
+        TimeRange.Week => now.AddDays(-7),
+        TimeRange.Month => new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc),
+        TimeRange.Year => new DateTime(now.Year, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+        _ => DateTime.MinValue.ToUniversalTime()
+    };
+
+    private string GetActiveClass(TimeRange range) => selectedRange == range ? "active" : "";
+
+    private async Task ChangeRange(TimeRange range)
+    {
+        selectedRange = range;
+        await LoadAnalyticsData();
+        await UpdateCharts();
+    }
+
+    private void CalculateInsights()
+    {
+        if (!filteredTransactions.Any()) return;
+
+        var topCat = filteredTransactions
+            .Where(t => t.Type == TransactionType.Expense)
+            .GroupBy(t => t.Category?.Name)
+            .Select(g => new { Name = g.Key ?? "Unknown", Total = g.Sum(t => t.AmountPLN) })
+            .OrderByDescending(x => x.Total)
+            .FirstOrDefault();
+
+        topCategoryName = topCat?.Name ?? "N/A";
+        topCategoryAmount = topCat?.Total ?? 0;
+
+        var expenseTransactions = filteredTransactions.Where(t => t.Type == TransactionType.Expense).ToList();
+        if (expenseTransactions.Any())
+        {
+            var daysCount = (DateTime.UtcNow - expenseTransactions.Min(t => t.Date)).Days + 1;
+            dailyAverage = expenseTransactions.Sum(t => t.AmountPLN) / daysCount;
+        }
+    }
+
+    private decimal CalculateSavingsRate()
+    {
+        var income = filteredTransactions.Where(t => t.Type == TransactionType.Income).Sum(t => t.AmountPLN);
+        var expenses = filteredTransactions.Where(t => t.Type == TransactionType.Expense).Sum(t => t.AmountPLN);
+
+        if (income == 0) return 0;
+
+        var rate = ((income - expenses) / income) * 100;
+        return Math.Round(rate, 1);
+    }
+
+    private async Task LoadGoal()
+    {
+        var goal = await context.FinancialGoals.FirstOrDefaultAsync();
+        if (goal == null)
+        {
+            currentGoal = new FinancialGoal { Name = "Set your goal!", TargetAmount = 1000 };
+        }
+        else
+        {
+            currentGoal = goal;
+        }
+    }
+
+    private async Task SaveGoal()
+    {
+        if (currentGoal.Id == 0)
+            context.FinancialGoals.Add(currentGoal);
+        else
+            context.Update(currentGoal);
+
+        await context.SaveChangesAsync();
+        showGoalModal = false;
+        await LoadAnalyticsData();
+    }
+
+    private async Task OnPieChartTypeChanged(ChangeEventArgs e)
+    {
+        if (Enum.TryParse<TransactionType>(e.Value?.ToString(), out var selectedType))
+        {
+            pieChartType = selectedType;
+            await UpdateCharts();
+        }
+    }
+
+    private async Task UpdateCharts()
+    {
+        if (filteredTransactions == null || !filteredTransactions.Any()) return;
+
+        var pieData = filteredTransactions
+            .Where(t => t.Type == pieChartType)
+            .GroupBy(t => t.Category?.Name ?? "Other")
+            .Select(g => new { Name = g.Key, Total = (double)g.Sum(t => t.AmountPLN) })
+            .ToList();
+
+        var pieLabels = pieData.Select(x => x.Name).ToArray();
+        var pieValues = pieData.Select(x => x.Total).ToArray();
+
+        string pieTitle = pieChartType == TransactionType.Expense ? "Expenses by Category" : "Income by Source";
+
+        var minDate = filteredTransactions.Min(t => t.Date.Date);
+
+        var balanceBeforePeriod = await context.Transactions
+            .Where(t => t.Date.Date < minDate)
+            .SumAsync(t => t.Type == TransactionType.Income ? (double)t.AmountPLN : -(double)t.AmountPLN);
+
+        var dailyFlows = filteredTransactions
+            .GroupBy(t => t.Date.Date)
+            .OrderBy(g => g.Key)
+            .Select(g => new
+            {
+                Date = g.Key,
+                NetChange = g.Sum(t => t.Type == TransactionType.Income ? (double)t.AmountPLN : -(double)t.AmountPLN)
+            })
+            .ToList();
+
+        var lineLabels = new List<string>();
+        var lineValues = new List<double>();
+
+        double runningTotal = balanceBeforePeriod;
+
+        foreach (var day in dailyFlows)
+        {
+            runningTotal += day.NetChange;
+            lineLabels.Add(day.Date.ToShortDateString());
+            lineValues.Add(Math.Round(runningTotal, 2));
+        }
+
+        await JSRuntime.InvokeVoidAsync("setupChart", "pieChart", "doughnut", pieLabels, pieValues, pieTitle);
+        await JSRuntime.InvokeVoidAsync("setupChart", "lineChart", "line", lineLabels.ToArray(), lineValues.ToArray(), "Net Worth (PLN)");
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await LoadAnalyticsData();
+            await UpdateCharts();
+        }
+    }
 }
